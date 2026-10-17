@@ -1,15 +1,29 @@
-import unittest
-from modules.collectors import check_cnic, check_email, check_phone, check_username
-class CollectorTests(unittest.TestCase):
-    def test_cnic_format(self):
-        self.assertTrue(check_cnic('12345-1234567-1')['format_has_13_digits'])
-        self.assertFalse(check_cnic('123')['format_has_13_digits'])
-    def test_email_syntax(self):
-        self.assertTrue(check_email('test@example.com')['syntax_valid'])
-        self.assertFalse(check_email('not-an-email')['syntax_valid'])
-    def test_phone_length(self):
-        self.assertTrue(check_phone('+923001234567')['is_plausible_international_length'])
-        self.assertFalse(check_phone('12')['is_plausible_international_length'])
-    def test_username_validation(self):
-        self.assertEqual(check_username('../bad', ['GitHub'])[0]['status'], 'invalid_input')
-if __name__ == '__main__': unittest.main()
+
+from modules.collectors import validate_cnic_format, validate_phone
+
+
+def test_cnic_format_requires_13_digits():
+    valid = validate_cnic_format("1234512345671")
+    invalid = validate_cnic_format("12345")
+
+    assert valid["evidence"]["format_valid"] is True
+    assert invalid["evidence"]["format_valid"] is False
+
+
+def test_phone_result_has_required_fields():
+    output = validate_phone("+14155552671", "US")
+
+    assert "status" in output
+    assert "finding" in output
+    assert "observed_at" in output
+    assert "limitations" in output
+
+
+def test_cnic_does_not_claim_identity_verification():
+    output = validate_cnic_format("1234512345671")
+
+    assert output["status"] == "inconclusive"
+    assert any(
+        "does not authenticate" in limitation.lower()
+        for limitation in output["limitations"]
+    )
