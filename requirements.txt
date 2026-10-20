@@ -1,6 +1,6 @@
-streamlit>=1.40,<2.0
-requests>=2.32,<3.0
-phonenumbers>=8.13,<10.0
+streamlit>=1.32
+requests>=2.31
+phonenumbers>=8.13
 dnspython>=2.6,<3.0
 Pillow>=10.4,<13.0
 crewai==1.13.0
