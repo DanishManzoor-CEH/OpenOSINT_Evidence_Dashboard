@@ -110,9 +110,19 @@ def validate_phone(raw_phone: str, default_region: str = "PK") -> dict:
 
 def twilio_line_type_lookup(e164: str) -> dict:
     """Optional paid Twilio Lookup v2 line-type request. Never logs secrets."""
+    
     account_sid = get_secret("TWILIO_ACCOUNT_SID")
-    api_key = get_secret("TWILIO_API_KEY")
-    api_secret = get_secret("TWILIO_API_SECRET")
+
+api_key = (
+    get_secret("TWILIO_API_KEY_SID")
+    or get_secret("TWILIO_API_KEY")
+)
+
+api_secret = (
+    get_secret("TWILIO_API_KEY_SECRET")
+    or get_secret("TWILIO_API_SECRET")
+)
+    
 
     base = {
         "module": "twilio_line_type",
@@ -125,11 +135,17 @@ def twilio_line_type_lookup(e164: str) -> dict:
             "A successful lookup does not prove current reachability.",
         ],
     }
-    if not (account_sid and api_key and api_secret):
-        return {
-            **base, "status": "unavailable",
-            "finding": "Twilio credentials are not configured."
-        }
+    if not api_key or not api_secret:
+    return {
+        **base,
+        "status": "unavailable",
+        "finding": "Twilio API key credentials are missing.",
+        "evidence": {
+            "account_sid_found": bool(account_sid),
+            "api_key_sid_found": bool(api_key),
+            "api_key_secret_found": bool(api_secret),
+        },
+    }
 
     url = f"https://lookups.twilio.com/v2/PhoneNumbers/{quote(e164, safe='+')}"
     try:
