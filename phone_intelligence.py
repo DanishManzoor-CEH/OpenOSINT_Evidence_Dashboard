@@ -112,18 +112,14 @@ def twilio_line_type_lookup(e164: str) -> dict:
     """Optional paid Twilio Lookup v2 line-type request. Never logs secrets."""
     
     account_sid = get_secret("TWILIO_ACCOUNT_SID")
-
-api_key = (
+    api_key = (
     get_secret("TWILIO_API_KEY_SID")
     or get_secret("TWILIO_API_KEY")
 )
-
-api_secret = (
+    api_secret = (
     get_secret("TWILIO_API_KEY_SECRET")
     or get_secret("TWILIO_API_SECRET")
 )
-    
-
     base = {
         "module": "twilio_line_type",
         "source": "Twilio Lookup v2",
