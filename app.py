@@ -2,7 +2,7 @@
 import os
 import ipaddress
 from datetime import datetime, timezone
-
+from social_links import render_social_links_tab
 import pandas as pd
 import requests
 import streamlit as st
@@ -286,14 +286,16 @@ with st.expander("Scope and privacy", expanded=True):
 # 5. NAVIGATION TABS
 # --------------------------------------------------
 
+
 (
-    tab_phone,
-    tab_email,
-    tab_public,
-    tab_cnic,
-    tab_image,
-    tab_geo,
-    tab_report,
+    phone_tab,
+    email_tab,
+    search_tab,
+    cnic_tab,
+    image_tab,
+    geo_tab,
+    social_tab,
+    report_tab,
 ) = st.tabs(
     [
         "📱 Phone",
@@ -302,9 +304,13 @@ with st.expander("Scope and privacy", expanded=True):
         "🪪 CNIC",
         "🖼️ Image",
         "🌍 Geolocation Analyst",
+        "🔗 Social Links",
         "📄 Report",
     ]
 )
+
+with social_tab:
+    render_social_links_tab()
 
 
 # --------------------------------------------------
