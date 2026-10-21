@@ -317,7 +317,7 @@ with social_tab:
 # 6. PHONE TAB
 # --------------------------------------------------
 
-with tab_phone:
+with phone_tab:
     st.subheader("Phone number checks")
 
     phone = st.text_input(
@@ -355,7 +355,7 @@ with tab_phone:
 # 7. EMAIL TAB
 # --------------------------------------------------
 
-with tab_email:
+with email_tab:
     st.subheader("Email checks")
 
     email = st.text_input("Email address", key="email_input")
@@ -384,7 +384,7 @@ with tab_email:
 # 8. PUBLIC SEARCH TAB
 # --------------------------------------------------
 
-with tab_public:
+with search_tab:
     st.subheader("Public profile and page discovery")
 
     query = st.text_input(
@@ -419,7 +419,7 @@ with tab_public:
 # 9. CNIC TAB
 # --------------------------------------------------
 
-with tab_cnic:
+with cnic_tab:
     st.subheader("CNIC format and official self-service")
 
     cnic = st.text_input(
@@ -450,7 +450,7 @@ with tab_cnic:
 # 10. IMAGE TAB
 # --------------------------------------------------
 
-with tab_image:
+with image_tab:
     st.subheader("Image metadata")
 
     uploaded_image = st.file_uploader(
@@ -494,7 +494,7 @@ with tab_image:
 # 11. GEOLOCATION ANALYST TAB
 # --------------------------------------------------
 
-with tab_geo:
+with geo_tab:
     st.subheader("🌍 IP Geolocation Analyst")
 
     st.write(
@@ -596,7 +596,7 @@ with tab_geo:
 # 12. REPORT TAB
 # --------------------------------------------------
 
-with tab_report:
+with report_tab:
     st.subheader("Evidence report")
 
     saved_findings = st.session_state.get("last_findings", [])
