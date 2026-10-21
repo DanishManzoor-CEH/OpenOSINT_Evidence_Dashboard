@@ -1,5 +1,4 @@
-
-streamlit==1.53.0
+streamlit>=1.32
 requests>=2.31
 phonenumbers>=8.13
 dnspython>=2.6,<3.0
