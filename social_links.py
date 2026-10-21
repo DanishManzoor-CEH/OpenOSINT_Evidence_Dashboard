@@ -1,5 +1,6 @@
-
 # social_links.py
+"""Social Links Search integration for the OpenOSINT Evidence Dashboard."""
+
 from urllib.parse import urlparse
 
 import requests
@@ -46,25 +47,20 @@ class SocialLinksAPIError(Exception):
 def _secret(name, default=""):
     """Read an optional secret without exposing it."""
     try:
-        return str(st.secrets.get(name, default)).strip()
+        value = st.secrets.get(name, default)
     except Exception:
-        return default
+        value = default
+    return str(value).strip() if value else default
 
 
-def search_social_links(
-    query,
-    social_networks=None,
-    provider="OpenWebNinja",
-):
+def search_social_links(query, social_networks=None, provider="OpenWebNinja"):
     """Search public social profile links through the selected provider."""
-
     query = str(query or "").strip()
 
     if not query:
         raise SocialLinksAPIError(
             "Enter a name, username, domain, or public search query."
         )
-
     if len(query) > 200:
         raise SocialLinksAPIError(
             "The search query must be 200 characters or fewer."
@@ -72,9 +68,10 @@ def search_social_links(
 
     networks = social_networks or DEFAULT_NETWORKS
     networks = [
-        n.lower() for n in networks if n.lower() in NETWORKS
+        str(network).lower()
+        for network in networks
+        if str(network).lower() in NETWORKS
     ]
-
     if not networks:
         raise SocialLinksAPIError(
             "Select at least one supported social network."
@@ -82,15 +79,15 @@ def search_social_links(
 
     if provider == "OpenWebNinja":
         api_key = _secret("OPENWEBNINJA_API_KEY")
-
         if not api_key:
             raise SocialLinksAPIError(
                 "OpenWebNinja is not configured. Add "
                 "OPENWEBNINJA_API_KEY to Streamlit Secrets."
             )
-
         url = OPENWEBNINJA_URL
         headers = {"X-API-Key": api_key}
+        # The supplied OpenWebNinja quickstart documents only "query".
+        params = {"query": query}
 
     elif provider == "RapidAPI":
         api_key = _secret("RAPIDAPI_KEY")
@@ -98,26 +95,22 @@ def search_social_links(
             "RAPIDAPI_SOCIAL_LINKS_HOST",
             "social-links-search.p.rapidapi.com",
         )
-
         if not api_key:
             raise SocialLinksAPIError(
                 "RapidAPI is not configured. Add RAPIDAPI_KEY "
                 "to Streamlit Secrets."
             )
-
         url = RAPIDAPI_URL
         headers = {
             "X-RapidAPI-Key": api_key,
             "X-RapidAPI-Host": api_host,
         }
-
+        params = {
+            "query": query,
+            "social_networks": ",".join(networks),
+        }
     else:
         raise SocialLinksAPIError("Unsupported API provider.")
-
-    params = {"query": query}
-
-if provider == "RapidAPI":
-    params["social_networks"] = ",".join(networks)
 
     try:
         response = requests.get(
@@ -126,12 +119,10 @@ if provider == "RapidAPI":
             headers=headers,
             timeout=(5, 25),
         )
-
     except requests.Timeout:
         raise SocialLinksAPIError(
             "The API request timed out. Try again later."
         ) from None
-
     except requests.RequestException:
         raise SocialLinksAPIError(
             "Could not connect to the Social Links Search API. "
@@ -140,21 +131,18 @@ if provider == "RapidAPI":
 
     if response.status_code in (401, 403):
         raise SocialLinksAPIError(
-            "Authentication failed. Check your API key, provider, "
+            "Authentication failed. Check the API key, provider, "
             "RapidAPI host, and active subscription."
         )
-
     if response.status_code == 429:
         raise SocialLinksAPIError(
             "The API rate limit or monthly quota has been reached. "
             "Check your provider's usage dashboard."
         )
-
     if response.status_code >= 500:
         raise SocialLinksAPIError(
             "The API provider returned a server error. Try again later."
         )
-
     if not response.ok:
         raise SocialLinksAPIError(
             f"The API returned HTTP {response.status_code}. "
@@ -179,31 +167,25 @@ if provider == "RapidAPI":
             "The provider reported that the search failed."
         )
 
-    # Some providers wrap network results inside "data".
     results = payload.get("data", payload)
-
     if not isinstance(results, dict):
         raise SocialLinksAPIError(
             "No usable social network results were returned."
         )
 
-    # Only show networks selected in the interface.
+    # Keep selected networks visible, even when they have no results.
     normalized = {}
-
     for network in networks:
         entries = results.get(network, [])
         if not isinstance(entries, list):
-            continue
+            entries = []
 
         valid_links = []
         for entry in entries:
             if not isinstance(entry, str):
                 continue
-
             link = entry.strip()
             parsed = urlparse(link)
-
-            # Only display normal web links, never executable schemes.
             if (
                 parsed.scheme in ("http", "https")
                 and parsed.hostname
@@ -211,22 +193,30 @@ if provider == "RapidAPI":
             ):
                 valid_links.append(link)
 
-        # Remove duplicates while preserving result order.
         normalized[network] = list(dict.fromkeys(valid_links))
 
     return {
+        "module": "social_links_search",
+        "status": "success",
+        "finding": "Social Links Search completed.",
+        "source": provider,
+        "observed_at": None,
         "query": query,
         "provider": provider,
         "request_id": payload.get("request_id", ""),
         "results": normalized,
-        "total": sum(len(v) for v in normalized.values()),
+        "total": sum(len(links) for links in normalized.values()),
         "http_status": response.status_code,
+        "limitations": [
+            "Returned profiles are candidate matches, not verified identities.",
+            "A shared name or username may belong to an unrelated person.",
+            "Only links returned by the selected provider are shown.",
+        ],
     }
 
 
 def render_social_links_tab():
     """Render the Social Links Search feature inside Streamlit."""
-
     st.subheader("Social Links Search")
     st.caption(
         "Search publicly returned social profile links. "
@@ -239,20 +229,17 @@ def render_social_links_tab():
             placeholder="Enter a name, username, or domain",
             max_chars=200,
         )
-
         provider = st.selectbox(
             "API provider",
             ["OpenWebNinja", "RapidAPI"],
             help="Choose the provider for which you configured a secret.",
         )
-
         networks = st.multiselect(
             "Social networks",
             options=NETWORKS,
             default=DEFAULT_NETWORKS,
-            help="Only selected networks are requested and displayed.",
+            help="Only selected networks are displayed.",
         )
-
         submitted = st.form_submit_button(
             "Search social links",
             type="primary",
@@ -268,55 +255,48 @@ def render_social_links_tab():
                     provider=provider,
                 )
 
+            from datetime import datetime, timezone
+
+            result["observed_at"] = datetime.now(timezone.utc).isoformat()
             st.session_state["social_links_last_result"] = result
+            st.session_state.setdefault("last_findings", []).append(result)
 
         except SocialLinksAPIError as exc:
             st.error(str(exc))
 
     result = st.session_state.get("social_links_last_result")
-
     if not result:
-        st.info(
-            "Enter a query and select Search social links to begin."
-        )
+        st.info("Enter a query and select Search social links to begin.")
         return
 
     st.divider()
     st.markdown("### Search overview")
-
     metric1, metric2, metric3 = st.columns(3)
     metric1.metric("Profiles returned", result["total"])
-    metric2.metric("Networks searched", len(result["results"]))
+    metric2.metric("Networks selected", len(result["results"]))
     metric3.metric("Provider", result["provider"])
 
     st.caption(f"Query: {result['query']}")
-
     if result.get("request_id"):
         st.caption(f"Request ID: {result['request_id']}")
 
     if result["total"] == 0:
         st.warning(
-            "No valid profile links were returned for the selected "
-            "networks. This does not establish that no profiles exist."
+            "No valid profile links were returned for the selected networks. "
+            "This does not establish that no profiles exist."
         )
         return
 
     st.markdown("### Results by social network")
-
-    # Render two columns of independent result sections.
     items = list(result["results"].items())
 
     for start in range(0, len(items), 2):
         columns = st.columns(2)
-
-        for col, (network, links) in zip(
-            columns, items[start:start + 2]
-        ):
-            with col:
+        for column, (network, links) in zip(columns, items[start:start + 2]):
+            with column:
                 with st.container(border=True):
                     st.markdown(f"#### {network.title()}")
                     st.metric("Links found", len(links))
-
                     if not links:
                         st.caption("No links returned.")
                         continue
@@ -324,7 +304,6 @@ def render_social_links_tab():
                     for index, link in enumerate(links, start=1):
                         st.markdown(f"{index}. [{link}]({link})")
 
-    st.caption(
-        "Review profiles independently before associating them with "
-        "a person. Search results may contain unrelated people."
-    )
+    with st.expander("Limitations and evidence notes"):
+        for limitation in result.get("limitations", []):
+            st.write(f"• {limitation}")
