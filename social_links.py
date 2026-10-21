@@ -114,10 +114,10 @@ def search_social_links(
     else:
         raise SocialLinksAPIError("Unsupported API provider.")
 
-    params = {
-        "query": query,
-        "social_networks": ",".join(networks),
-    }
+    params = {"query": query}
+
+if provider == "RapidAPI":
+    params["social_networks"] = ",".join(networks)
 
     try:
         response = requests.get(
